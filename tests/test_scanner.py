@@ -90,6 +90,49 @@ def test_remote_js_malware_is_caught() -> None:
     assert "script.atob_decode" in rule_ids
 
 
+def test_extensions_load_false_positive_is_clean() -> None:
+    result = scan_zip(FIX / "fp_extensions_load.zip")
+    assert result.verdict == Verdict.CLEAN
+    assert not any(f.rule_id == "script.loadstring" for f in result.findings)
+
+
+def test_evil_os_execute() -> None:
+    result = scan_zip(FIX / "evil_os_execute.zip")
+    assert result.verdict == Verdict.MALICIOUS
+    assert any(f.rule_id == "script.os_execute" for f in result.findings)
+
+
+def test_evil_ffi() -> None:
+    result = scan_zip(FIX / "evil_ffi.zip")
+    assert result.verdict == Verdict.MALICIOUS
+    assert any(f.rule_id.startswith("script.ffi") for f in result.findings)
+
+
+def test_evil_websocket() -> None:
+    result = scan_zip(FIX / "evil_websocket.zip")
+    assert result.verdict in {Verdict.SUSPICIOUS, Verdict.MALICIOUS}
+    assert any(f.rule_id == "script.websocket" for f in result.findings)
+
+
+def test_evil_write_appdata() -> None:
+    result = scan_zip(FIX / "evil_write_appdata.zip")
+    assert result.verdict in {Verdict.SUSPICIOUS, Verdict.MALICIOUS}
+    assert any(f.rule_id in {"script.risky_file_write", "script.appdata"} for f in result.findings)
+
+
+def test_obfuscated_lua_is_suspicious_not_critical_alone() -> None:
+    result = scan_zip(FIX / "obfuscated_lua.zip")
+    assert result.verdict == Verdict.SUSPICIOUS
+    assert any(f.rule_id == "script.obfuscated_lua" for f in result.findings)
+    assert not any(f.severity.value == "critical" for f in result.findings)
+
+
+def test_html_credit_comment_is_clean() -> None:
+    result = scan_zip(FIX / "html_credit_comment.zip")
+    assert result.verdict == Verdict.CLEAN
+    assert not any(f.severity.value in {"medium", "high", "critical"} for f in result.findings)
+
+
 def test_discover_folder() -> None:
     zips = discover_zips(FIX)
     assert len(zips) >= 5

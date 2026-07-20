@@ -54,6 +54,12 @@ class ModScannerApp(ctk.CTk):
             font=ctk.CTkFont(size=13),
             text_color=("gray30", "gray70"),
         ).grid(row=1, column=0, sticky="w", pady=(2, 0))
+        ctk.CTkLabel(
+            header,
+            text="Beam is sandboxed; this only does static pattern matching on zip contents.",
+            font=ctk.CTkFont(size=12),
+            text_color=("gray40", "gray60"),
+        ).grid(row=2, column=0, sticky="w", pady=(2, 0))
 
         path_row = ctk.CTkFrame(self)
         path_row.grid(row=1, column=0, sticky="ew", padx=20, pady=8)
@@ -217,7 +223,9 @@ class ModScannerApp(ctk.CTk):
         self._populate_results_list()
         if results:
             self.export_btn.configure(state="normal")
-            self.status_label.configure(text=f"Done — {counts['total']} archive(s) scanned.")
+            self.status_label.configure(
+                text=f"Done — {counts['total']} archive(s). Heuristic only; CLEAN ≠ safe."
+            )
             self.progress.set(1)
             self._show_result(results[0])
         else:
@@ -251,6 +259,7 @@ class ModScannerApp(ctk.CTk):
         lines: list[str] = [
             f"File: {result.zip_path}",
             f"Verdict: {result.verdict.value}",
+            "Note: Heuristic only — Beam is sandboxed; CLEAN ≠ safe.",
             f"Members: {result.member_count}",
         ]
         if result.error:

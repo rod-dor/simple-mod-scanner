@@ -14,6 +14,7 @@ class PatternRule:
     pattern: re.Pattern[str]
     detail: str
     languages: frozenset[str]
+    category: str = "high-signal"  # or false-positive-prone
 
 
 RULES: list[PatternRule] = [
@@ -35,9 +36,10 @@ RULES: list[PatternRule] = [
     PatternRule(
         "script.loadstring",
         Severity.CRITICAL,
-        # Avoid bare load( — common and often legitimate in Lua.
-        re.compile(r"\bloadstring\s*\(|\bload\s*\(\s*['\"]", re.IGNORECASE),
-        "Dynamic code loading from a string (loadstring / load \"...\")",
+        # (?<![\w.]) avoids matching extensions.load(...).
+        # Bare load('ExtensionName') is filtered later as BeamNG extension loading.
+        re.compile(r"(?i)(?<![\w.])(?:loadstring\s*\(|load\s*\()"),
+        "Dynamic code loading (loadstring / load of code)",
         frozenset({"lua"}),
     ),
     PatternRule(
@@ -85,10 +87,18 @@ RULES: list[PatternRule] = [
     # --- High: network / remote code ---
     PatternRule(
         "script.network_url",
-        Severity.HIGH,
+        Severity.LOW,  # demoted; escalate if file also uses network APIs
         re.compile(r"https?://[^\s'\"`<>]+", re.IGNORECASE),
-        "Contains an HTTP(S) URL",
+        "Contains an HTTP(S) URL (often docs/credits — low alone)",
         frozenset({"lua", "js", "html"}),
+        category="false-positive-prone",
+    ),
+    PatternRule(
+        "script.websocket",
+        Severity.HIGH,
+        re.compile(r"\bWebSocket\s*\(", re.IGNORECASE),
+        "Opens a WebSocket connection (possible remote control / phone-home)",
+        frozenset({"js", "html"}),
     ),
     PatternRule(
         "script.socket",
@@ -103,7 +113,6 @@ RULES: list[PatternRule] = [
     PatternRule(
         "script.download_tools",
         Severity.HIGH,
-        # Bare XMLHttpRequest/fetch moved to http_client_with_url (needs URL context).
         re.compile(r"\b(?:curl|wget|DownloadString|WebClient|Invoke-WebRequest)\b", re.IGNORECASE),
         "References download / HTTP client tooling",
         frozenset({"lua", "js", "html"}),
@@ -134,6 +143,16 @@ RULES: list[PatternRule] = [
         frozenset({"js", "html"}),
     ),
     PatternRule(
+        "script.risky_file_write",
+        Severity.HIGH,
+        re.compile(
+            r"(?i)(?:jsonWriteFile|writeFile|io\.open)\s*\([^;]{0,200}"
+            r"(?:[A-Za-z]:\\|%APPDATA%|%LOCALAPPDATA%|%TEMP%|/Users/|\\Users\\|Documents\\)",
+        ),
+        "Writes a file using an absolute / user-profile path (high-signal)",
+        frozenset({"lua"}),
+    ),
+    PatternRule(
         "script.absolute_windows_path",
         Severity.HIGH,
         re.compile(r"[A-Za-z]:\\(?:Users|Windows|Program Files|Temp)[^'\"\n]*", re.IGNORECASE),
@@ -157,8 +176,6 @@ RULES: list[PatternRule] = [
     PatternRule(
         "script.js_eval",
         Severity.HIGH,
-        # eval(...) case-insensitive; Function(...) constructor must stay case-sensitive
-        # so Angular/JS `function ()` callbacks are not flagged.
         re.compile(r"(?i:\beval\s*\()|(?<![A-Za-z0-9_])Function\s*\("),
         "Uses eval / Function (dynamic JS execution)",
         frozenset({"js", "html"}),
@@ -170,13 +187,14 @@ RULES: list[PatternRule] = [
         "Decodes base64 via atob (common malware staging step)",
         frozenset({"js", "html"}),
     ),
-    # --- Medium: obfuscation (carefully filtered at match time) ---
+    # --- Medium: obfuscation ---
     PatternRule(
         "script.base64_blob",
         Severity.MEDIUM,
         re.compile(r"[A-Za-z0-9+/]{160,}={0,2}"),
         "Contains a very long base64-like string (possible obfuscation)",
         frozenset({"lua", "js"}),
+        category="false-positive-prone",
     ),
     PatternRule(
         "script.hex_escape_dense",
@@ -189,14 +207,26 @@ RULES: list[PatternRule] = [
         "script.string_char_chain",
         Severity.MEDIUM,
         re.compile(r"string\.char\s*\(", re.IGNORECASE),
-        "Builds strings via string.char (common obfuscation)",
+        "Builds strings via string.char (common obfuscation; ignored unless frequent in file)",
         frozenset({"lua"}),
+        category="false-positive-prone",
     ),
 ]
 
 
-# eval(page) / eval(key) — lazy variable lookup used by some gauge packs (not string eval).
 _EVAL_IDENTIFIER_RE = re.compile(r"(?i)\beval\s*\(\s*[A-Za-z_$][\w$]*\s*\)")
+# BeamNG extension loader: load('myExtension') / load("my.extension")
+_BEAM_EXT_LOAD_RE = re.compile(
+    r"(?i)(?<![\w.])load\s*\(\s*['\"][A-Za-z_][\w.]*['\"]\s*\)"
+)
+_NETWORK_API_RE = re.compile(
+    r"(?i)\b(?:WebSocket\s*\(|XMLHttpRequest\b|\bfetch\s*\(|socket\.(?:connect|http|tcp|udp)\b|"
+    r"http\.request\s*\(|require\s*\(\s*['\"]socket)"
+)
+_OBFUSCATED_LUA_RE = re.compile(
+    r"(?i)while\s+true\b.*?\bv0\b.*?\bv1\b|\bv0\s*=\s*\{.*?while\s+true\b",
+    re.DOTALL,
+)
 
 
 def _lang_for(path: str) -> str | None:
@@ -217,6 +247,9 @@ def _under_ui(path: str) -> bool:
 
 def _is_comment_line(line: str) -> bool:
     stripped = line.lstrip()
+    # HTML comments and odd credit lines like: <! DO NOT USE ... https://...>
+    if stripped.startswith("<!") and not stripped.lower().startswith("<!doctype"):
+        return True
     return (
         stripped.startswith("//")
         or stripped.startswith("--")
@@ -227,7 +260,7 @@ def _is_comment_line(line: str) -> bool:
 
 _BENIGN_URL_RE = re.compile(
     r"(?:"
-    r"beamng\.com/bCDDL|"
+    r"beamng\.com|"
     r"stackoverflow\.com|"
     r"github\.com|"
     r"developer\.mozilla\.org|"
@@ -251,7 +284,6 @@ def _should_skip_network_url(line: str) -> bool:
 
 
 def _should_skip_base64(line: str) -> bool:
-    # Gauge/UI code often embeds images as data URIs — not malware.
     lower = line.lower()
     if "data:image" in lower or "data:application/octet" in lower:
         return True
@@ -261,23 +293,33 @@ def _should_skip_base64(line: str) -> bool:
 
 
 def _is_eval_identifier_lookup(line: str) -> bool:
-    """True for eval(page)/eval(key) style lookups — not eval('code') / eval(atob(...))."""
     return _EVAL_IDENTIFIER_RE.search(line) is not None and "Function" not in line
 
 
-def _severity_for(rule: PatternRule, path: str, line: str = "") -> Severity:
+def _is_beam_extension_load(line: str) -> bool:
+    """True for load('extName') — BeamNG extension API, not Lua loadstring."""
+    if "loadstring" in line.lower():
+        return False
+    return _BEAM_EXT_LOAD_RE.search(line) is not None and "[[" not in line
+
+
+def _severity_for(rule: PatternRule, path: str, line: str = "", file_has_network_api: bool = False) -> Severity:
     if rule.rule_id == "script.js_eval" and _is_eval_identifier_lookup(line):
-        # Still reported (not ignored), but does not alone make a mod SUSPICIOUS.
         return Severity.LOW
-    if rule.rule_id == "script.network_url" and _lang_for(path) in {"js", "html"} and _under_ui(path):
+    if rule.rule_id == "script.network_url":
+        if file_has_network_api:
+            return Severity.HIGH
         return Severity.LOW
     return rule.severity
 
 
 def _detail_for(rule: PatternRule, line: str) -> str:
+    prefix = f"[{rule.category}] "
     if rule.rule_id == "script.js_eval" and _is_eval_identifier_lookup(line):
-        return "eval(identifier) variable lookup (common in gauge UI; low risk vs eval of strings)"
-    return rule.detail
+        return prefix + "eval(identifier) variable lookup (common in gauge UI; low risk vs eval of strings)"
+    if rule.rule_id == "script.loadstring" and _is_beam_extension_load(line):
+        return prefix + "BeamNG extension load('name') — ignored as dynamic-code signal"
+    return prefix + rule.detail
 
 
 def _truncate(text: str, limit: int = 120) -> str:
@@ -285,6 +327,28 @@ def _truncate(text: str, limit: int = 120) -> str:
     if len(text) <= limit:
         return text
     return text[: limit - 3] + "..."
+
+
+def _file_obfuscation_finding(path: str, text: str) -> Finding | None:
+    if not path.lower().endswith(".lua"):
+        return None
+    # Dense obfuscators: while-true control flow + v0/v1 locals, usually one huge line
+    lines = text.splitlines()
+    long_lines = sum(1 for line in lines if len(line) > 400)
+    if long_lines < 1:
+        return None
+    if not re.search(r"(?i)\bwhile\s+true\b", text):
+        return None
+    if not re.search(r"\bv0\b", text) or not re.search(r"\bv1\b", text):
+        return None
+    return Finding(
+        severity=Severity.MEDIUM,
+        rule_id="script.obfuscated_lua",
+        path=path.replace("\\", "/"),
+        detail="[high-signal] Obfuscated Lua (dense v0/v1 + while-true) — review manually; not proof of malware",
+        line=next((i for i, line in enumerate(lines, 1) if len(line) > 400), 1),
+        snippet=_truncate(next((line for line in lines if len(line) > 400), text[:120])),
+    )
 
 
 def scan_script_patterns(members: list[ZipMember], zf) -> list[Finding]:
@@ -302,9 +366,15 @@ def scan_script_patterns(members: list[ZipMember], zf) -> list[Finding]:
             continue
 
         lines = text.splitlines()
+        file_has_network_api = bool(_NETWORK_API_RE.search(text))
+        string_char_hits = len(re.findall(r"(?i)string\.char\s*\(", text))
+
         for rule in RULES:
             if lang not in rule.languages:
                 continue
+            if rule.rule_id == "script.string_char_chain" and string_char_hits < 3:
+                continue
+
             best: Finding | None = None
             for line_no, line in enumerate(lines, start=1):
                 match = rule.pattern.search(line)
@@ -314,14 +384,18 @@ def scan_script_patterns(members: list[ZipMember], zf) -> list[Finding]:
                     continue
                 if rule.rule_id == "script.base64_blob" and _should_skip_base64(line):
                     continue
+                if rule.rule_id == "script.loadstring" and _is_beam_extension_load(line):
+                    continue
                 if _is_comment_line(line) and rule.rule_id in {
                     "script.download_tools",
                     "script.http_client_with_url",
                     "script.atob_decode",
+                    "script.websocket",
+                    "script.risky_file_write",
                 }:
                     continue
                 candidate = Finding(
-                    severity=_severity_for(rule, member.name, line),
+                    severity=_severity_for(rule, member.name, line, file_has_network_api),
                     rule_id=rule.rule_id,
                     path=member.name.replace("\\", "/"),
                     detail=_detail_for(rule, line),
@@ -330,13 +404,15 @@ def scan_script_patterns(members: list[ZipMember], zf) -> list[Finding]:
                 )
                 if best is None or candidate.severity.rank > best.severity.rank:
                     best = candidate
-                # For most rules one hit is enough; for eval keep scanning so
-                # eval('payload') is not hidden behind an earlier eval(page).
                 if rule.rule_id != "script.js_eval":
                     break
                 if candidate.severity.rank >= Severity.HIGH.rank:
                     break
             if best is not None:
                 findings.append(best)
+
+        obf = _file_obfuscation_finding(member.name, text)
+        if obf is not None:
+            findings.append(obf)
 
     return findings

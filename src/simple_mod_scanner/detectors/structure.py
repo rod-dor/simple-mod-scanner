@@ -80,14 +80,14 @@ def scan_structure(members: list[ZipMember]) -> list[Finding]:
 
     top_dirs, top_files = _top_segments(members)
 
-    # Orphan files at ZIP root
+    # Orphan files at ZIP root (readme/credits) — informational only
     for name in sorted(top_files):
         findings.append(
             Finding(
-                severity=Severity.MEDIUM,
+                severity=Severity.LOW,
                 rule_id="structure.orphan_root_file",
                 path=name,
-                detail="File at ZIP root outside a BeamNG top-level folder",
+                detail="[false-positive-prone] File at ZIP root outside a BeamNG top-level folder",
             )
         )
 

@@ -12,7 +12,11 @@ It looks for obviously suspicious stuff (executables, shell/FFI patterns, odd pa
 
 This tool uses basic static pattern matching. Clever malware can hide from it. False positives happen. You are responsible for what you install.
 
+BeamNG itself is heavily sandboxed — many classic `os.execute`-style tricks are blocked in-game. This scanner still flags them as high-signal *intent*, and focuses on patterns like WebSockets, remote script loads, FFI, and absolute file writes.
+
 Use it as a quick second look only — keep real antivirus installed, and treat random Discord/forum mods with caution.
+
+We test with **synthetic fixtures we wrote ourselves**. We do not distribute real malware samples.
 
 ## Features
 

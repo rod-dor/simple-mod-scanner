@@ -52,7 +52,7 @@ def _extension(name: str) -> str:
 
 
 def _js_allowed(path: str) -> bool:
-    """Allow JS in ui/ or under vehicle gauge/screen UI folders.
+    """Allow JS in ui/ or under vehicle UI folders (gauge/screen/mmi/dash).
 
     Location allowlisting only skips the 'unexpected .js path' rule.
     File contents are still fully scanned for malware patterns.
@@ -60,14 +60,13 @@ def _js_allowed(path: str) -> bool:
     parts = path.lower().replace("\\", "/").split("/")
     if any(p == "ui" for p in parts[:-1]):
         return True
-    # vehicles/<vehicle>/.../<folder with gauge|screen>/file.js
+    markers = ("gauge", "screen", "mmi", "dash")
     if len(parts) >= 3 and parts[0] == "vehicles":
-        for part in parts[2:-1]:  # skip vehicles/ and vehicle name; skip filename
-            if "gauge" in part or "screen" in part:
+        for part in parts[2:-1]:
+            if any(marker in part for marker in markers):
                 return True
-        # also allow vehicles/<vehicle>/gauges_screen.js style (rare)
         filename = parts[-1]
-        if "gauge" in filename or "screen" in filename:
+        if any(marker in filename for marker in markers):
             return True
     return False
 
@@ -134,7 +133,7 @@ def scan_dangerous_files(members: list[ZipMember], zf) -> list[Finding]:
                     severity=Severity.HIGH,
                     rule_id="dangerous.js_outside_ui",
                     path=path,
-                    detail="JavaScript outside ui/ and vehicle gauge/screen folders (contents still scanned when allowed)",
+                    detail="JavaScript outside ui/ and vehicle UI folders (gauge/screen/mmi/dash); contents still scanned when allowed",
                 )
             )
 
