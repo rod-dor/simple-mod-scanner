@@ -15,6 +15,12 @@ A **simple, best-effort** heuristic checker for [BeamNG.drive](https://www.beamn
 
 It looks for obviously suspicious stuff (executables, shell/FFI patterns, odd packing) **in memory** — nothing is extracted to disk.
 
+### Example scan
+
+![Example scan of a folder of BeamNG mod zips — Simple Mod Scanner v1.3.1](assets/example-scan.png)
+
+*Example only — a folder of random mod zips for demo. I do **not** own or redistribute those mods; names shown are just whatever was in that test folder.*
+
 ## Important — how to read results
 
 **This is not antivirus.**  
