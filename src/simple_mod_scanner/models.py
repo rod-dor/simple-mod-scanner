@@ -53,6 +53,11 @@ class ScanResult:
 
     @property
     def verdict(self) -> Verdict:
+        """MALICIOUS = only critical escape/native/dropper signals.
+
+        SUSPICIOUS = high/medium heuristics (network, dynamic load, obfuscation, odd layout).
+        CLEAN = nothing above low.
+        """
         if self.error:
             return Verdict.ERROR
         if any(f.severity == Severity.CRITICAL for f in self.findings):

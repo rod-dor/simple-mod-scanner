@@ -133,6 +133,13 @@ def test_html_credit_comment_is_clean() -> None:
     assert not any(f.severity.value in {"medium", "high", "critical"} for f in result.findings)
 
 
+def test_dynamic_load_cmd_is_suspicious_not_malicious() -> None:
+    result = scan_zip(FIX / "dynamic_load_cmd.zip")
+    assert result.verdict == Verdict.SUSPICIOUS
+    assert any(f.rule_id == "script.loadstring" for f in result.findings)
+    assert not any(f.severity.value == "critical" for f in result.findings)
+
+
 def test_discover_folder() -> None:
     zips = discover_zips(FIX)
     assert len(zips) >= 5

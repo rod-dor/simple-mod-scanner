@@ -59,9 +59,11 @@ python -m simple_mod_scanner
 
 | Verdict | Meaning |
 |---|---|
-| CLEAN | No medium/high/critical heuristic hits (still not a safety guarantee) |
-| SUSPICIOUS | Medium/high hits worth a closer look |
-| MALICIOUS | Critical hits (executables, shell/FFI, path traversal, …) |
+| CLEAN | No medium/high/critical hits (still not a safety guarantee) |
+| SUSPICIOUS | Worth a closer look — network pipes, dynamic `load(cmd)`, obfuscation, odd JS paths, etc. Often legit advanced mods |
+| MALICIOUS | Only **hard** signals: Windows executables/PE droppers, `os.execute` / `io.popen`, FFI / `package.loadlib`, ActiveX/WScript, shell binaries, zip path traversal |
+
+**MALICIOUS is intentionally rare.** Things like WebSocket (live audio / DRM), `load(cmd)` triggers, or obfuscated Lua are **SUSPICIOUS**, not automatic malware.
 
 ## Development
 

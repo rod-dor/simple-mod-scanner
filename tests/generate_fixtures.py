@@ -194,6 +194,18 @@ def main() -> None:
         },
     )
 
+    _write_zip(
+        FIX / "dynamic_load_cmd.zip",
+        {
+            "vehicles/car/lua/controller/triggers.lua": (
+                "local cmd = action.onPress\n"
+                "cmd = cmd:gsub('VALUE', tostring(value))\n"
+                "local fn = load(cmd)\n"
+                "if fn then pcall(fn) end\n"
+            ),
+        },
+    )
+
     print(f"Wrote fixtures to {FIX}")
 
 

@@ -52,7 +52,7 @@ def _extension(name: str) -> str:
 
 
 def _js_allowed(path: str) -> bool:
-    """Allow JS in ui/ or under vehicle UI folders (gauge/screen/mmi/dash).
+    """Allow JS in ui/ or under vehicle UI folders (gauge/screen/mmi/dash/carplay).
 
     Location allowlisting only skips the 'unexpected .js path' rule.
     File contents are still fully scanned for malware patterns.
@@ -60,7 +60,7 @@ def _js_allowed(path: str) -> bool:
     parts = path.lower().replace("\\", "/").split("/")
     if any(p == "ui" for p in parts[:-1]):
         return True
-    markers = ("gauge", "screen", "mmi", "dash")
+    markers = ("gauge", "screen", "mmi", "dash", "carplay")
     if len(parts) >= 3 and parts[0] == "vehicles":
         for part in parts[2:-1]:
             if any(marker in part for marker in markers):
@@ -146,10 +146,13 @@ def scan_dangerous_files(members: list[ZipMember], zf) -> list[Finding]:
             if header[:2] == b"MZ":
                 findings.append(
                     Finding(
-                        severity=Severity.HIGH,
+                        severity=Severity.CRITICAL,
                         rule_id="dangerous.pe_magic",
                         path=path,
-                        detail="File starts with Windows PE magic (MZ) but is not named as an executable/DLL",
+                        detail=(
+                            "[high-signal] File starts with Windows PE magic (MZ) but is not named as an executable/DLL "
+                            "— possible disguised Windows binary"
+                        ),
                     )
                 )
 

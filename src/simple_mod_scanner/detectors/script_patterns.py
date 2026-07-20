@@ -39,13 +39,18 @@ RULES: list[PatternRule] = [
     ),
     PatternRule(
         "script.loadstring",
-        Severity.CRITICAL,
+        # HIGH only — many legit mods use load(cmd) for triggers/config. Not enough alone for MALICIOUS.
+        Severity.HIGH,
         # (?<![\w.]) avoids matching extensions.load(...).
         # Bare load('ExtensionName') is filtered later as BeamNG extension loading.
         re.compile(r"(?i)(?<![\w.])(?:loadstring\s*\(|load\s*\()"),
         "Dynamic code loading (loadstring / load of code)",
         frozenset({"lua"}),
-        explain="Builds/runs Lua code from a string at runtime. Beam's load('extensionName') is ignored separately.",
+        category="false-positive-prone",
+        explain=(
+            "Runs Lua built as a string (e.g. load(cmd)). Common in advanced trigger/config mods; "
+            "malware can abuse it too. Alone this is SUSPICIOUS, not MALICIOUS."
+        ),
     ),
     PatternRule(
         "script.package_loadlib",
