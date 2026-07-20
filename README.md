@@ -1,10 +1,21 @@
 # Simple Mod Scanner
 
+> **Reality check (read this first)**  
+> Real malware in BeamNG mods is rare. From what’s been documented publicly, there have only been a handful of cases (e.g. some leaked mods years ago, and a repo mod from a compromised account). A lot of “malware mod” talk is scare — often aimed at keeping people off sketchy download sites full of ads. That does **not** mean you should be careless.
+>
+> **Practical rules:**
+> - Prefer official / trusted sources when you can.
+> - Only install **`.zip` mod archives** that look like normal BeamNG packs. Do **not** run `.exe`, `.msi`, “installers,” crack tools, or anything else that asks you to execute a downloaded file.
+> - If a download is not a mod zip (or a repo you trust), don’t open it.
+> - Keep real antivirus on. This tool is a quick second look, not protection.
+>
+> This scanner can only flag **obvious shady patterns** (executables inside the zip, WebSockets, file deletes, weird Lua, etc.). It cannot find clever hidden malware. **CLEAN ≠ safe.**
+
 A **simple, best-effort** heuristic checker for [BeamNG.drive](https://www.beamng.com/) mod `.zip` files.
 
 It looks for obviously suspicious stuff (executables, shell/FFI patterns, odd packing) **in memory** — nothing is extracted to disk.
 
-## Important — read this
+## Important — how to read results
 
 **This is not antivirus.**  
 **A CLEAN result does not mean a mod is safe.**  
@@ -12,9 +23,7 @@ It looks for obviously suspicious stuff (executables, shell/FFI patterns, odd pa
 
 This tool uses basic static pattern matching. Clever malware can hide from it. False positives happen. You are responsible for what you install.
 
-BeamNG itself is heavily sandboxed — many classic `os.execute`-style tricks are blocked in-game. This scanner still flags them as high-signal *intent*, and focuses on patterns community reports can still matter in-sandbox: **WebSockets**, **`FS:removeFile` / `fs.remove`**, remote script loads, FFI, and absolute file writes.
-
-Use it as a quick second look only — keep real antivirus installed, and treat random Discord/forum mods with caution.
+BeamNG itself is heavily sandboxed — many classic `os.execute`-style tricks are blocked in-game. This scanner still flags them as high-signal *intent*, and focuses on patterns that can still matter in-sandbox: **WebSockets**, **`FS:removeFile` / `fs.remove`**, remote script loads, FFI, and absolute file writes.
 
 We test with **synthetic fixtures we wrote ourselves**. We do not distribute real malware samples.
 
