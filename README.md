@@ -65,6 +65,14 @@ python -m simple_mod_scanner
 
 **MALICIOUS is intentionally rare.** Things like WebSocket (live audio / DRM), `load(cmd)` triggers, or obfuscated Lua are **SUSPICIOUS**, not automatic malware.
 
+## Found a malicious mod?
+
+If you hit a mod that looks **actually malicious** (not just SUSPICIOUS / a false positive), contact me on Discord so I can inspect it and improve the scanner:
+
+**Discord: `@rodomil`**
+
+Please include the mod name/source if you can, and preferably the zip or a scan report export. Do **not** post malware publicly in GitHub issues.
+
 ## Development
 
 ```powershell
