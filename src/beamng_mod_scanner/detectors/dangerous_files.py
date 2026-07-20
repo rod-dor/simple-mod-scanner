@@ -52,13 +52,22 @@ def _extension(name: str) -> str:
 
 
 def _js_allowed(path: str) -> bool:
-    """BeamNG allows JS under ui/ and vehicle digital gauge screens."""
+    """Allow JS in ui/ or under vehicle gauge/screen UI folders.
+
+    Location allowlisting only skips the 'unexpected .js path' rule.
+    File contents are still fully scanned for malware patterns.
+    """
     parts = path.lower().replace("\\", "/").split("/")
     if any(p == "ui" for p in parts[:-1]):
         return True
-    # vehicles/<vehicle_name>/gauges_screen, gauges_screen2, ...
-    for i, part in enumerate(parts[:-1]):
-        if part.startswith("gauges_screen") and i >= 2 and parts[i - 2] == "vehicles":
+    # vehicles/<vehicle>/.../<folder with gauge|screen>/file.js
+    if len(parts) >= 3 and parts[0] == "vehicles":
+        for part in parts[2:-1]:  # skip vehicles/ and vehicle name; skip filename
+            if "gauge" in part or "screen" in part:
+                return True
+        # also allow vehicles/<vehicle>/gauges_screen.js style (rare)
+        filename = parts[-1]
+        if "gauge" in filename or "screen" in filename:
             return True
     return False
 
@@ -125,7 +134,7 @@ def scan_dangerous_files(members: list[ZipMember], zf) -> list[Finding]:
                     severity=Severity.HIGH,
                     rule_id="dangerous.js_outside_ui",
                     path=path,
-                    detail="JavaScript file outside allowed BeamNG locations (ui/, vehicles/*/gauges_screen*/)",
+                    detail="JavaScript outside ui/ and vehicle gauge/screen folders (contents still scanned when allowed)",
                 )
             )
 

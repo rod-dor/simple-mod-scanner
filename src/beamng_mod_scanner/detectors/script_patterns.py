@@ -195,6 +195,10 @@ RULES: list[PatternRule] = [
 ]
 
 
+# eval(page) / eval(key) — lazy variable lookup used by some gauge packs (not string eval).
+_EVAL_IDENTIFIER_RE = re.compile(r"(?i)\beval\s*\(\s*[A-Za-z_$][\w$]*\s*\)")
+
+
 def _lang_for(path: str) -> str | None:
     lower = path.lower().replace("\\", "/")
     if lower.endswith(".lua"):
@@ -256,10 +260,24 @@ def _should_skip_base64(line: str) -> bool:
     return False
 
 
-def _severity_for(rule: PatternRule, path: str) -> Severity:
+def _is_eval_identifier_lookup(line: str) -> bool:
+    """True for eval(page)/eval(key) style lookups — not eval('code') / eval(atob(...))."""
+    return _EVAL_IDENTIFIER_RE.search(line) is not None and "Function" not in line
+
+
+def _severity_for(rule: PatternRule, path: str, line: str = "") -> Severity:
+    if rule.rule_id == "script.js_eval" and _is_eval_identifier_lookup(line):
+        # Still reported (not ignored), but does not alone make a mod SUSPICIOUS.
+        return Severity.LOW
     if rule.rule_id == "script.network_url" and _lang_for(path) in {"js", "html"} and _under_ui(path):
         return Severity.LOW
     return rule.severity
+
+
+def _detail_for(rule: PatternRule, line: str) -> str:
+    if rule.rule_id == "script.js_eval" and _is_eval_identifier_lookup(line):
+        return "eval(identifier) variable lookup (common in gauge UI; low risk vs eval of strings)"
+    return rule.detail
 
 
 def _truncate(text: str, limit: int = 120) -> str:
@@ -287,6 +305,7 @@ def scan_script_patterns(members: list[ZipMember], zf) -> list[Finding]:
         for rule in RULES:
             if lang not in rule.languages:
                 continue
+            best: Finding | None = None
             for line_no, line in enumerate(lines, start=1):
                 match = rule.pattern.search(line)
                 if not match:
@@ -301,17 +320,23 @@ def scan_script_patterns(members: list[ZipMember], zf) -> list[Finding]:
                     "script.atob_decode",
                 }:
                     continue
-                findings.append(
-                    Finding(
-                        severity=_severity_for(rule, member.name),
-                        rule_id=rule.rule_id,
-                        path=member.name.replace("\\", "/"),
-                        detail=rule.detail,
-                        line=line_no,
-                        snippet=_truncate(line),
-                    )
+                candidate = Finding(
+                    severity=_severity_for(rule, member.name, line),
+                    rule_id=rule.rule_id,
+                    path=member.name.replace("\\", "/"),
+                    detail=_detail_for(rule, line),
+                    line=line_no,
+                    snippet=_truncate(line),
                 )
-                # One hit per rule per file is enough to avoid noise.
-                break
+                if best is None or candidate.severity.rank > best.severity.rank:
+                    best = candidate
+                # For most rules one hit is enough; for eval keep scanning so
+                # eval('payload') is not hidden behind an earlier eval(page).
+                if rule.rule_id != "script.js_eval":
+                    break
+                if candidate.severity.rank >= Severity.HIGH.rank:
+                    break
+            if best is not None:
+                findings.append(best)
 
     return findings

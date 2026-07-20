@@ -60,6 +60,20 @@ def test_clean_gauges_screen_is_clean() -> None:
     assert not any(f.severity.value in {"medium", "high", "critical"} for f in result.findings)
 
 
+def test_eval_identifier_lookup_is_low_only() -> None:
+    result = scan_zip(FIX / "clean_gauges_screen.zip")
+    eval_findings = [f for f in result.findings if f.rule_id == "script.js_eval"]
+    assert eval_findings
+    assert all(f.severity.value == "low" for f in eval_findings)
+
+
+def test_string_eval_in_gauge_folder_still_high() -> None:
+    result = scan_zip(FIX / "gauge_hidden_eval.zip")
+    assert result.verdict in {Verdict.SUSPICIOUS, Verdict.MALICIOUS}
+    eval_findings = [f for f in result.findings if f.rule_id == "script.js_eval"]
+    assert any(f.severity.value == "high" for f in eval_findings)
+
+
 def test_js_eval_rule_ignores_lowercase_function() -> None:
     rule = next(r for r in RULES if r.rule_id == "script.js_eval")
     assert rule.pattern.search("function () {") is None
