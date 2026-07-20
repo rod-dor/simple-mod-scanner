@@ -17,9 +17,17 @@ This is a desktop app (CustomTkinter) aimed at players who download mods from fo
 
 This tool uses **static heuristics**. It is **not** antivirus software and will not catch every threat. A clean result does not guarantee a mod is safe; a suspicious result does not always mean malware (some false positives are expected). Use common sense and keep a real AV product installed.
 
-## Install
+## Install (Windows — easiest)
 
-Requires **Python 3.10+**.
+1. Install **Python 3.10+** from https://www.python.org/downloads/  
+   (check **Add python.exe to PATH** during setup)
+2. Download / clone this repo
+3. Double-click **`install.bat`**
+4. Double-click **`run.bat`** whenever you want to open the scanner
+
+`run.bat` will run `install.bat` automatically if you skip step 3.
+
+### Manual install (optional)
 
 ```powershell
 git clone https://github.com/rod-dor/beamng-mod-scanner.git
@@ -27,19 +35,10 @@ cd beamng-mod-scanner
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .
-```
-
-## Run
-
-```powershell
-beamng-mod-scanner
-```
-
-Or:
-
-```powershell
 python -m beamng_mod_scanner
 ```
+
+## Use
 
 1. Click **Browse file** or **Browse folder**
 2. Click **Scan**
