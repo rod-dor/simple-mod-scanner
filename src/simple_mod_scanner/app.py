@@ -274,7 +274,7 @@ class ModScannerApp(ctk.CTk):
                 loc = f":{finding.line}" if finding.line else ""
                 lines.append(f"[{finding.severity.value.upper()}] {finding.rule_id}")
                 lines.append(f"  path: {finding.path}{loc}")
-                lines.append(f"  {finding.detail}")
+                lines.append(f"  what: {finding.detail}")
                 if finding.snippet:
                     lines.append(f"  snippet: {finding.snippet}")
                 lines.append("")

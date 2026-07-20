@@ -15,6 +15,8 @@ class PatternRule:
     detail: str
     languages: frozenset[str]
     category: str = "high-signal"  # or false-positive-prone
+    # Plain-language note so users can tell malware-ish use from legit mod features.
+    explain: str = ""
 
 
 RULES: list[PatternRule] = [
@@ -25,6 +27,7 @@ RULES: list[PatternRule] = [
         re.compile(r"\bos\.execute\s*\(", re.IGNORECASE),
         "Calls os.execute (process execution)",
         frozenset({"lua"}),
+        explain="Tries to run a system command. Rarely legitimate in mods; often blocked by Beam anyway.",
     ),
     PatternRule(
         "script.io_popen",
@@ -32,6 +35,7 @@ RULES: list[PatternRule] = [
         re.compile(r"\bio\.popen\s*\(", re.IGNORECASE),
         "Calls io.popen (shell command)",
         frozenset({"lua"}),
+        explain="Runs a shell command and reads its output. Almost never needed for normal vehicle/UI mods.",
     ),
     PatternRule(
         "script.loadstring",
@@ -41,6 +45,7 @@ RULES: list[PatternRule] = [
         re.compile(r"(?i)(?<![\w.])(?:loadstring\s*\(|load\s*\()"),
         "Dynamic code loading (loadstring / load of code)",
         frozenset({"lua"}),
+        explain="Builds/runs Lua code from a string at runtime. Beam's load('extensionName') is ignored separately.",
     ),
     PatternRule(
         "script.package_loadlib",
@@ -48,6 +53,7 @@ RULES: list[PatternRule] = [
         re.compile(r"\bpackage\.loadlib\s*\(", re.IGNORECASE),
         "Loads a native shared library via package.loadlib",
         frozenset({"lua"}),
+        explain="Loads a native .dll/.so from Lua. Normal mods should not need this.",
     ),
     PatternRule(
         "script.shell_strings",
@@ -55,6 +61,7 @@ RULES: list[PatternRule] = [
         re.compile(r"(?:cmd\.exe|powershell(?:\.exe)?|pwsh(?:\.exe)?|/bin/sh|bash\s+-c)", re.IGNORECASE),
         "References shell / PowerShell / cmd",
         frozenset({"lua", "js", "html"}),
+        explain="Mentions OS shells. Could be a string in docs, but treat as serious if in runnable code.",
     ),
     PatternRule(
         "script.ffi_require",
@@ -62,6 +69,7 @@ RULES: list[PatternRule] = [
         re.compile(r"""require\s*\(\s*['"]ffi['"]\s*\)""", re.IGNORECASE),
         "Requires LuaJIT FFI module",
         frozenset({"lua"}),
+        explain="FFI can call native C APIs. High power; uncommon in normal mods.",
     ),
     PatternRule(
         "script.ffi_cdef",
@@ -69,6 +77,7 @@ RULES: list[PatternRule] = [
         re.compile(r"\bffi\.cdef\s*\(", re.IGNORECASE),
         "Defines native C bindings via ffi.cdef",
         frozenset({"lua"}),
+        explain="Declares native functions to call from Lua. Flagged because it bypasses normal scripting limits.",
     ),
     PatternRule(
         "script.ffi_load",
@@ -76,6 +85,7 @@ RULES: list[PatternRule] = [
         re.compile(r"\bffi\.load\s*\(", re.IGNORECASE),
         "Loads a native library via ffi.load",
         frozenset({"lua"}),
+        explain="Loads a native library into the process. Not used by typical vehicle content.",
     ),
     PatternRule(
         "script.wscript_activex",
@@ -83,6 +93,7 @@ RULES: list[PatternRule] = [
         re.compile(r"\b(?:WScript|ActiveXObject|Shell\.Application)\b", re.IGNORECASE),
         "References Windows scripting / ActiveX APIs (not used by normal BeamNG UI)",
         frozenset({"js", "html"}),
+        explain="Windows automation APIs. Not part of normal Beam UI; strong malware smell if present.",
     ),
     # --- High: network / remote code ---
     PatternRule(
@@ -92,6 +103,7 @@ RULES: list[PatternRule] = [
         "Contains an HTTP(S) URL (often docs/credits — low alone)",
         frozenset({"lua", "js", "html"}),
         category="false-positive-prone",
+        explain="A web link in the file. Often author credits or docs; more concerning if paired with fetch/WebSocket.",
     ),
     PatternRule(
         "script.websocket",
@@ -99,6 +111,11 @@ RULES: list[PatternRule] = [
         re.compile(r"\bWebSocket\s*\(", re.IGNORECASE),
         "Opens a WebSocket connection (possible remote control / phone-home)",
         frozenset({"js", "html"}),
+        explain=(
+            "Opens a live network pipe to another program/server. "
+            "Malware can phone home this way; legit mods may use it for live audio, "
+            "companion apps, or telemetry. Check the host/URL and whether you trust the author."
+        ),
     ),
     PatternRule(
         "script.socket",
@@ -109,6 +126,7 @@ RULES: list[PatternRule] = [
         ),
         "Uses network sockets / HTTP request APIs",
         frozenset({"lua", "js"}),
+        explain="Raw network access from Lua/JS. Can be a local helper tool or remote contact — verify purpose.",
     ),
     PatternRule(
         "script.download_tools",
@@ -116,6 +134,7 @@ RULES: list[PatternRule] = [
         re.compile(r"\b(?:curl|wget|DownloadString|WebClient|Invoke-WebRequest)\b", re.IGNORECASE),
         "References download / HTTP client tooling",
         frozenset({"lua", "js", "html"}),
+        explain="Names tools/APIs used to download content. Unusual inside a shipped mod zip.",
     ),
     PatternRule(
         "script.http_client_with_url",
@@ -127,6 +146,7 @@ RULES: list[PatternRule] = [
         ),
         "HTTP client API used together with an HTTP(S) URL",
         frozenset({"js", "html"}),
+        explain="Actively contacts a web address. Confirm the domain is expected for this mod.",
     ),
     PatternRule(
         "script.remote_script_src",
@@ -134,6 +154,7 @@ RULES: list[PatternRule] = [
         re.compile(r"""<\s*script[^>]+src\s*=\s*['"]https?://""", re.IGNORECASE),
         "Loads a remote <script src=\"http(s)://...\">",
         frozenset({"html"}),
+        explain="Pulls JavaScript from the internet at runtime. Mod code should usually be inside the zip.",
     ),
     PatternRule(
         "script.document_write_script",
@@ -141,6 +162,7 @@ RULES: list[PatternRule] = [
         re.compile(r"document\.write\s*\([^)]*<\s*script", re.IGNORECASE),
         "Injects a script via document.write",
         frozenset({"js", "html"}),
+        explain="Writes a script tag into the page dynamically — common in old web malware patterns.",
     ),
     PatternRule(
         "script.risky_file_write",
@@ -151,6 +173,7 @@ RULES: list[PatternRule] = [
         ),
         "Writes a file using an absolute / user-profile path (high-signal)",
         frozenset({"lua"}),
+        explain="Writes outside a relative mod path (e.g. AppData). Normal settings often use relative paths only.",
     ),
     PatternRule(
         "script.absolute_windows_path",
@@ -158,6 +181,7 @@ RULES: list[PatternRule] = [
         re.compile(r"[A-Za-z]:\\(?:Users|Windows|Program Files|Temp)[^'\"\n]*", re.IGNORECASE),
         "References an absolute Windows system/user path",
         frozenset({"lua", "js"}),
+        explain="Hard-coded system/user path. Sometimes config; sometimes persistence/exfil targeting.",
     ),
     PatternRule(
         "script.appdata",
@@ -165,6 +189,7 @@ RULES: list[PatternRule] = [
         re.compile(r"%APPDATA%|%LOCALAPPDATA%|%TEMP%|\\AppData\\", re.IGNORECASE),
         "References AppData / temp environment paths",
         frozenset({"lua", "js"}),
+        explain="Touches user profile/temp locations. Can be innocent caching — read nearby code.",
     ),
     PatternRule(
         "script.registry",
@@ -172,6 +197,7 @@ RULES: list[PatternRule] = [
         re.compile(r"HKEY_(?:LOCAL_MACHINE|CURRENT_USER)|\\\\Software\\\\Microsoft", re.IGNORECASE),
         "References Windows registry paths",
         frozenset({"lua", "js"}),
+        explain="Registry access is unusual for Beam mods and worth manual review.",
     ),
     PatternRule(
         "script.js_eval",
@@ -179,6 +205,7 @@ RULES: list[PatternRule] = [
         re.compile(r"(?i:\beval\s*\()|(?<![A-Za-z0-9_])Function\s*\("),
         "Uses eval / Function (dynamic JS execution)",
         frozenset({"js", "html"}),
+        explain="Runs JS built as a string. Gauge packs sometimes use eval(name) as a lazy lookup (marked low); eval('code') is riskier.",
     ),
     PatternRule(
         "script.atob_decode",
@@ -186,6 +213,7 @@ RULES: list[PatternRule] = [
         re.compile(r"\batob\s*\(", re.IGNORECASE),
         "Decodes base64 via atob (common malware staging step)",
         frozenset({"js", "html"}),
+        explain="Decodes base64 data. Used for images/data URIs sometimes, or to hide payloads.",
     ),
     # --- Medium: obfuscation ---
     PatternRule(
@@ -195,6 +223,7 @@ RULES: list[PatternRule] = [
         "Contains a very long base64-like string (possible obfuscation)",
         frozenset({"lua", "js"}),
         category="false-positive-prone",
+        explain="Long encoded blob. Often embedded images; less often hidden scripts.",
     ),
     PatternRule(
         "script.hex_escape_dense",
@@ -202,6 +231,7 @@ RULES: list[PatternRule] = [
         re.compile(r"(?:\\x[0-9A-Fa-f]{2}){12,}"),
         "Dense hex-escaped string (possible obfuscation)",
         frozenset({"lua", "js"}),
+        explain="Many \\xNN escapes in one place — common obfuscation trick.",
     ),
     PatternRule(
         "script.string_char_chain",
@@ -210,6 +240,7 @@ RULES: list[PatternRule] = [
         "Builds strings via string.char (common obfuscation; ignored unless frequent in file)",
         frozenset({"lua"}),
         category="false-positive-prone",
+        explain="Builds text byte-by-byte. Binary protocols (e.g. audio bridges) do this legitimately; malware uses it to hide strings.",
     ),
 ]
 
@@ -316,10 +347,17 @@ def _severity_for(rule: PatternRule, path: str, line: str = "", file_has_network
 def _detail_for(rule: PatternRule, line: str) -> str:
     prefix = f"[{rule.category}] "
     if rule.rule_id == "script.js_eval" and _is_eval_identifier_lookup(line):
-        return prefix + "eval(identifier) variable lookup (common in gauge UI; low risk vs eval of strings)"
-    if rule.rule_id == "script.loadstring" and _is_beam_extension_load(line):
-        return prefix + "BeamNG extension load('name') — ignored as dynamic-code signal"
-    return prefix + rule.detail
+        text = (
+            prefix
+            + "eval(identifier) variable lookup (common in gauge UI; low risk vs eval of strings)"
+        )
+    elif rule.rule_id == "script.loadstring" and _is_beam_extension_load(line):
+        text = prefix + "BeamNG extension load('name') — ignored as dynamic-code signal"
+    else:
+        text = prefix + rule.detail
+    if rule.explain:
+        text = f"{text} — {rule.explain}"
+    return text
 
 
 def _truncate(text: str, limit: int = 120) -> str:
@@ -345,7 +383,10 @@ def _file_obfuscation_finding(path: str, text: str) -> Finding | None:
         severity=Severity.MEDIUM,
         rule_id="script.obfuscated_lua",
         path=path.replace("\\", "/"),
-        detail="[high-signal] Obfuscated Lua (dense v0/v1 + while-true) — review manually; not proof of malware",
+        detail=(
+            "[high-signal] Obfuscated Lua (dense v0/v1 + while-true) — review manually; not proof of malware. "
+            "Paid/protected scripts are often obfuscated; malware is too. You cannot fully audit what it does."
+        ),
         line=next((i for i, line in enumerate(lines, 1) if len(line) > 400), 1),
         snippet=_truncate(next((line for line in lines if len(line) > 400), text[:120])),
     )

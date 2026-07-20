@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "simple-mod-scanner"
-version = "1.2.0"
+version = "1.2.1"
 description = "A simple heuristic scanner for BeamNG.drive mod ZIP files. Not antivirus."
 readme = "README.md"
 license = { text = "MIT" }
