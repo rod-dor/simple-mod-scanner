@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from beamng_mod_scanner.detectors.script_patterns import RULES
-from beamng_mod_scanner.models import Verdict
-from beamng_mod_scanner.scanner import discover_zips, scan_path, scan_zip
+from simple_mod_scanner.detectors.script_patterns import RULES
+from simple_mod_scanner.models import Verdict
+from simple_mod_scanner.scanner import discover_zips, scan_path, scan_zip
 
 FIX = Path(__file__).resolve().parent / "fixtures"
 

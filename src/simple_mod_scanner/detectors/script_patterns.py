@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from beamng_mod_scanner.models import Finding, Severity
-from beamng_mod_scanner.zip_reader import ZipMember, read_text
+from simple_mod_scanner.models import Finding, Severity
+from simple_mod_scanner.zip_reader import ZipMember, read_text
 
 
 @dataclass(frozen=True, slots=True)

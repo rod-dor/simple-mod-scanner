@@ -3,11 +3,11 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from beamng_mod_scanner.detectors.dangerous_files import scan_dangerous_files
-from beamng_mod_scanner.detectors.script_patterns import scan_script_patterns
-from beamng_mod_scanner.detectors.structure import scan_structure
-from beamng_mod_scanner.models import ScanResult, Severity
-from beamng_mod_scanner.zip_reader import ZipReadError, list_members, open_mod_zip
+from simple_mod_scanner.detectors.dangerous_files import scan_dangerous_files
+from simple_mod_scanner.detectors.script_patterns import scan_script_patterns
+from simple_mod_scanner.detectors.structure import scan_structure
+from simple_mod_scanner.models import ScanResult, Severity
+from simple_mod_scanner.zip_reader import ZipReadError, list_members, open_mod_zip
 
 ProgressCallback = Callable[[int, int, str], None]
 

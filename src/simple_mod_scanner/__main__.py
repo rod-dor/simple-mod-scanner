@@ -1,4 +1,4 @@
-from beamng_mod_scanner.app import run_app
+from simple_mod_scanner.app import run_app
 
 
 def main() -> None:

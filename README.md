@@ -1,21 +1,27 @@
-# BeamNG Mod Scanner
+# Simple Mod Scanner
 
-Scan [BeamNG.drive](https://www.beamng.com/) mod `.zip` files for malware and suspicious code **in memory** — nothing is extracted to disk.
+A **simple, best-effort** heuristic checker for [BeamNG.drive](https://www.beamng.com/) mod `.zip` files.
 
-This is a desktop app (CustomTkinter) aimed at players who download mods from forums, Discord, or random links and want a quick second opinion before installing.
+It looks for obviously suspicious stuff (executables, shell/FFI patterns, odd packing) **in memory** — nothing is extracted to disk.
+
+## Important — read this
+
+**This is not antivirus.**  
+**A CLEAN result does not mean a mod is safe.**  
+**A SUSPICIOUS / MALICIOUS result does not always mean it is malware.**
+
+This tool uses basic static pattern matching. Clever malware can hide from it. False positives happen. You are responsible for what you install.
+
+Use it as a quick second look only — keep real antivirus installed, and treat random Discord/forum mods with caution.
 
 ## Features
 
-- Scan a single `.zip` or an entire folder of mods
-- Detect dangerous extensions (`.exe`, `.dll`, `.bat`, `.vbs`, …) and PE (`MZ`) payloads
-- Flag suspicious patterns in `.lua` / `.js` (shell execution, FFI, downloads, obfuscation)
-- Check for non-standard BeamNG folder packing (`vehicles/`, `lua/`, `ui/`, …)
+- Scan a single `.zip` or a folder of mods
+- Flag dangerous extensions (`.exe`, `.dll`, `.bat`, …) and PE (`MZ`) payloads
+- Flag suspicious patterns in `.lua` / `.js` / `.html`
+- Check for non-standard BeamNG folder packing
 - Color-coded verdicts: **CLEAN** / **SUSPICIOUS** / **MALICIOUS**
 - Export a JSON report
-
-## Disclaimer
-
-This tool uses **static heuristics**. It is **not** antivirus software and will not catch every threat. A clean result does not guarantee a mod is safe; a suspicious result does not always mean malware (some false positives are expected). Use common sense and keep a real AV product installed.
 
 ## Install (Windows — easiest)
 
@@ -23,35 +29,35 @@ This tool uses **static heuristics**. It is **not** antivirus software and will 
    (check **Add python.exe to PATH** during setup)
 2. Download / clone this repo
 3. Double-click **`install.bat`**
-4. Double-click **`run.bat`** whenever you want to open the scanner
+4. Double-click **`run.bat`** to open the app
 
-`run.bat` will run `install.bat` automatically if you skip step 3.
+`run.bat` will run `install.bat` automatically if needed.
 
 ### Manual install (optional)
 
 ```powershell
-git clone https://github.com/rod-dor/beamng-mod-scanner.git
-cd beamng-mod-scanner
+git clone https://github.com/rod-dor/simple-mod-scanner.git
+cd simple-mod-scanner
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .
-python -m beamng_mod_scanner
+python -m simple_mod_scanner
 ```
 
 ## Use
 
-1. Click **Browse file** or **Browse folder**
+1. Browse a `.zip` or folder
 2. Click **Scan**
-3. Select a result to inspect findings
-4. Optionally **Export JSON**
+3. Inspect findings
+4. Optionally export JSON
 
 ## Verdicts
 
 | Verdict | Meaning |
 |---|---|
-| CLEAN | No medium/high/critical findings |
-| SUSPICIOUS | Medium or high findings (odd layout, network URLs, obfuscation, …) |
-| MALICIOUS | Critical findings (executables, shell/FFI, path traversal, …) |
+| CLEAN | No medium/high/critical heuristic hits (still not a safety guarantee) |
+| SUSPICIOUS | Medium/high hits worth a closer look |
+| MALICIOUS | Critical hits (executables, shell/FFI, path traversal, …) |
 
 ## Development
 
@@ -62,4 +68,4 @@ pytest
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Provided as-is, with no warranty.

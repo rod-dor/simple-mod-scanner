@@ -14,8 +14,8 @@ if not exist ".venv\Scripts\python.exe" (
   )
 )
 
-echo Starting BeamNG Mod Scanner...
-".venv\Scripts\python.exe" -m beamng_mod_scanner
+echo Starting Simple Mod Scanner...
+".venv\Scripts\python.exe" -m simple_mod_scanner
 if errorlevel 1 (
   echo.
   echo [ERROR] The app exited with an error.

@@ -8,9 +8,9 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from beamng_mod_scanner import __version__
-from beamng_mod_scanner.models import ScanResult, Verdict
-from beamng_mod_scanner.scanner import results_to_jsonable, scan_path, summarize
+from simple_mod_scanner import __version__
+from simple_mod_scanner.models import ScanResult, Verdict
+from simple_mod_scanner.scanner import results_to_jsonable, scan_path, summarize
 
 VERDICT_COLORS = {
     Verdict.CLEAN: "#2ecc71",
@@ -23,7 +23,7 @@ VERDICT_COLORS = {
 class ModScannerApp(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
-        self.title(f"BeamNG Mod Scanner v{__version__}")
+        self.title(f"Simple Mod Scanner v{__version__}")
         self.geometry("1100x720")
         self.minsize(900, 600)
 
@@ -45,12 +45,12 @@ class ModScannerApp(ctk.CTk):
 
         ctk.CTkLabel(
             header,
-            text="BeamNG Mod Scanner",
+            text="Simple Mod Scanner",
             font=ctk.CTkFont(size=26, weight="bold"),
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(
             header,
-            text="Scan BeamNG mod ZIPs without extracting — static heuristics only",
+            text="Basic BeamNG mod ZIP heuristics — NOT antivirus. CLEAN ≠ safe.",
             font=ctk.CTkFont(size=13),
             text_color=("gray30", "gray70"),
         ).grid(row=1, column=0, sticky="w", pady=(2, 0))
@@ -143,7 +143,7 @@ class ModScannerApp(ctk.CTk):
 
         ctk.CTkLabel(
             footer,
-            text="Disclaimer: heuristic static analysis only — not a substitute for antivirus software.",
+            text="Not antivirus. CLEAN does not guarantee safety. You are responsible for what you install.",
             text_color=("gray40", "gray60"),
             anchor="w",
         ).grid(row=0, column=0, sticky="w")
@@ -284,7 +284,7 @@ class ModScannerApp(ctk.CTk):
             title="Export scan report",
             defaultextension=".json",
             filetypes=[("JSON", "*.json")],
-            initialfile="beamng-mod-scan-report.json",
+            initialfile="simple-mod-scan-report.json",
         )
         if not path:
             return

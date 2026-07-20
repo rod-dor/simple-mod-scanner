@@ -3,7 +3,7 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 echo ========================================
-echo  BeamNG Mod Scanner - Install
+echo  Simple Mod Scanner - Install
 echo ========================================
 echo.
 
@@ -39,7 +39,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo Installing BeamNG Mod Scanner...
+echo Installing Simple Mod Scanner...
 ".venv\Scripts\python.exe" -m pip install -e .
 if errorlevel 1 (
   echo [ERROR] Install failed
