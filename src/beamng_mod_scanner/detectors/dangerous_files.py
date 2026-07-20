@@ -56,9 +56,9 @@ def _js_allowed(path: str) -> bool:
     parts = path.lower().replace("\\", "/").split("/")
     if any(p == "ui" for p in parts[:-1]):
         return True
-    # vehicles/<vehicle_name>/gauges_screen/...
+    # vehicles/<vehicle_name>/gauges_screen, gauges_screen2, ...
     for i, part in enumerate(parts[:-1]):
-        if part == "gauges_screen" and i >= 2 and parts[i - 2] == "vehicles":
+        if part.startswith("gauges_screen") and i >= 2 and parts[i - 2] == "vehicles":
             return True
     return False
 
@@ -125,7 +125,7 @@ def scan_dangerous_files(members: list[ZipMember], zf) -> list[Finding]:
                     severity=Severity.HIGH,
                     rule_id="dangerous.js_outside_ui",
                     path=path,
-                    detail="JavaScript file outside allowed BeamNG locations (ui/, vehicles/*/gauges_screen/)",
+                    detail="JavaScript file outside allowed BeamNG locations (ui/, vehicles/*/gauges_screen*/)",
                 )
             )
 

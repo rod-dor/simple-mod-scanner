@@ -68,6 +68,14 @@ def test_js_eval_rule_ignores_lowercase_function() -> None:
     assert rule.pattern.search("Function('return 1')") is not None
 
 
+def test_remote_js_malware_is_caught() -> None:
+    result = scan_zip(FIX / "remote_js_malware.zip")
+    assert result.verdict in {Verdict.SUSPICIOUS, Verdict.MALICIOUS}
+    rule_ids = {f.rule_id for f in result.findings}
+    assert "script.remote_script_src" in rule_ids or "script.http_client_with_url" in rule_ids
+    assert "script.atob_decode" in rule_ids
+
+
 def test_discover_folder() -> None:
     zips = discover_zips(FIX)
     assert len(zips) >= 5
