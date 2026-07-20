@@ -63,6 +63,26 @@ def main() -> None:
         },
     )
 
+    _write_zip(
+        FIX / "clean_gauges_screen.zip",
+        {
+            "vehicles/car/gauges_screen/gauges_screen.js": (
+                "angular.module('gaugesScreen', [])\n"
+                ".directive('bngMapRenderUncompressed', function () {\n"
+                "  return { template: '<svg></svg>' };\n"
+                "});\n"
+                "//https://stackoverflow.com/a/56266358\n"
+            ),
+            "vehicles/car/lua/controller/demo.lua": (
+                "-- This Source Code Form is subject to the terms of the bCDDL, v. 1.1.\n"
+                "-- If a copy of the bCDDL was not distributed with this\n"
+                "-- file, You can obtain one at http://beamng.com/bCDDL-1.1.txt\n"
+                "local M = {}\n"
+                "return M\n"
+            ),
+        },
+    )
+
     print(f"Wrote fixtures to {FIX}")
 
 

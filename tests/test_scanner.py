@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from beamng_mod_scanner.detectors.script_patterns import RULES
 from beamng_mod_scanner.models import Verdict
 from beamng_mod_scanner.scanner import discover_zips, scan_path, scan_zip
 
@@ -50,6 +51,21 @@ def test_js_outside_ui() -> None:
     assert any(
         f.rule_id in {"dangerous.js_outside_ui", "script.js_eval"} for f in result.findings
     )
+
+
+def test_clean_gauges_screen_is_clean() -> None:
+    result = scan_zip(FIX / "clean_gauges_screen.zip")
+    assert result.error is None
+    assert result.verdict == Verdict.CLEAN
+    assert not any(f.severity.value in {"medium", "high", "critical"} for f in result.findings)
+
+
+def test_js_eval_rule_ignores_lowercase_function() -> None:
+    rule = next(r for r in RULES if r.rule_id == "script.js_eval")
+    assert rule.pattern.search("function () {") is None
+    assert rule.pattern.search(".directive('x', function () {") is None
+    assert rule.pattern.search("eval('x')") is not None
+    assert rule.pattern.search("Function('return 1')") is not None
 
 
 def test_discover_folder() -> None:

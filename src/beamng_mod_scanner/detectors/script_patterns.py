@@ -139,7 +139,9 @@ RULES: list[PatternRule] = [
     PatternRule(
         "script.js_eval",
         Severity.HIGH,
-        re.compile(r"\beval\s*\(|\bFunction\s*\(", re.IGNORECASE),
+        # eval(...) case-insensitive; Function(...) constructor must stay case-sensitive
+        # so Angular/JS `function ()` callbacks are not flagged.
+        re.compile(r"(?i:\beval\s*\()|(?<![A-Za-z0-9_])Function\s*\("),
         "Uses eval / Function (dynamic JS execution)",
         frozenset({"js"}),
     ),
@@ -158,6 +160,25 @@ def _lang_for(path: str) -> str | None:
 def _under_ui(path: str) -> bool:
     parts = path.lower().replace("\\", "/").split("/")
     return "ui" in parts[:-1]
+
+
+def _is_comment_line(line: str) -> bool:
+    stripped = line.lstrip()
+    return stripped.startswith("//") or stripped.startswith("--") or stripped.startswith("#")
+
+
+_BENIGN_URL_RE = re.compile(
+    r"(?:beamng\.com/bCDDL|stackoverflow\.com|github\.com|developer\.mozilla\.org)",
+    re.IGNORECASE,
+)
+
+
+def _should_skip_network_url(line: str) -> bool:
+    if _is_comment_line(line):
+        return True
+    if _BENIGN_URL_RE.search(line):
+        return True
+    return False
 
 
 def _severity_for(rule: PatternRule, path: str) -> Severity:
@@ -200,6 +221,8 @@ def scan_script_patterns(members: list[ZipMember], zf) -> list[Finding]:
             for line_no, line in enumerate(lines, start=1):
                 match = rule.pattern.search(line)
                 if not match:
+                    continue
+                if rule.rule_id == "script.network_url" and _should_skip_network_url(line):
                     continue
                 findings.append(
                     Finding(

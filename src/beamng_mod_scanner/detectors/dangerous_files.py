@@ -51,6 +51,18 @@ def _extension(name: str) -> str:
     return "." + lower.rsplit(".", 1)[-1]
 
 
+def _js_allowed(path: str) -> bool:
+    """BeamNG allows JS under ui/ and vehicle digital gauge screens."""
+    parts = path.lower().replace("\\", "/").split("/")
+    if any(p == "ui" for p in parts[:-1]):
+        return True
+    # vehicles/<vehicle_name>/gauges_screen/...
+    for i, part in enumerate(parts[:-1]):
+        if part == "gauges_screen" and i >= 2 and parts[i - 2] == "vehicles":
+            return True
+    return False
+
+
 def _has_double_extension(name: str) -> bool:
     lower = name.lower()
     parts = lower.split(".")
@@ -107,20 +119,15 @@ def scan_dangerous_files(members: list[ZipMember], zf) -> list[Finding]:
             )
             continue
 
-        if ext in CONDITIONAL_EXTENSIONS:
-            allowed_prefix = CONDITIONAL_EXTENSIONS[ext]
-            # Allow under any path segment that starts with allowed prefix after optional wrapper.
-            parts = lower_path.split("/")
-            under_ui = any(p == "ui" for p in parts[:-1]) or lower_path.startswith(allowed_prefix)
-            if not under_ui:
-                findings.append(
-                    Finding(
-                        severity=Severity.HIGH,
-                        rule_id="dangerous.js_outside_ui",
-                        path=path,
-                        detail="JavaScript file outside the BeamNG ui/ tree",
-                    )
+        if ext in CONDITIONAL_EXTENSIONS and not _js_allowed(lower_path):
+            findings.append(
+                Finding(
+                    severity=Severity.HIGH,
+                    rule_id="dangerous.js_outside_ui",
+                    path=path,
+                    detail="JavaScript file outside allowed BeamNG locations (ui/, vehicles/*/gauges_screen/)",
                 )
+            )
 
         # PE magic check for unexpected binaries
         if member.size >= 2 and ext not in {".dll", ".exe"}:
