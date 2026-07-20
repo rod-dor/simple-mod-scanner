@@ -206,6 +206,13 @@ def main() -> None:
         },
     )
 
+    _write_zip(
+        FIX / "evil_fs_remove.zip",
+        {
+            "lua/ge/extensions/bad.lua": 'FS:removeFile("settings/cloud/game-settings.json")\n',
+        },
+    )
+
     print(f"Wrote fixtures to {FIX}")
 
 

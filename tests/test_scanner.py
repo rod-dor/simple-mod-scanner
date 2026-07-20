@@ -140,6 +140,12 @@ def test_dynamic_load_cmd_is_suspicious_not_malicious() -> None:
     assert not any(f.severity.value == "critical" for f in result.findings)
 
 
+def test_fs_remove_is_suspicious() -> None:
+    result = scan_zip(FIX / "evil_fs_remove.zip")
+    assert result.verdict == Verdict.SUSPICIOUS
+    assert any(f.rule_id == "script.fs_remove" for f in result.findings)
+
+
 def test_discover_folder() -> None:
     zips = discover_zips(FIX)
     assert len(zips) >= 5

@@ -181,6 +181,20 @@ RULES: list[PatternRule] = [
         explain="Writes outside a relative mod path (e.g. AppData). Normal settings often use relative paths only.",
     ),
     PatternRule(
+        "script.fs_remove",
+        Severity.HIGH,
+        re.compile(
+            r"(?i)(?:FS\s*:\s*removeFile|FS\s*:\s*remove|\bfs\.remove|\bos\.remove)\s*\(",
+        ),
+        "Deletes files via FS/os remove APIs (can damage user/game data)",
+        frozenset({"lua"}),
+        explain=(
+            "Calls BeamNG FS:removeFile / fs.remove / os.remove. "
+            "Community reports this as one of the few sandboxed APIs that can still cause real damage. "
+            "Some mods may delete their own temp files — check the path argument."
+        ),
+    ),
+    PatternRule(
         "script.absolute_windows_path",
         Severity.HIGH,
         re.compile(r"[A-Za-z]:\\(?:Users|Windows|Program Files|Temp)[^'\"\n]*", re.IGNORECASE),
@@ -438,6 +452,7 @@ def scan_script_patterns(members: list[ZipMember], zf) -> list[Finding]:
                     "script.atob_decode",
                     "script.websocket",
                     "script.risky_file_write",
+                    "script.fs_remove",
                 }:
                     continue
                 candidate = Finding(
